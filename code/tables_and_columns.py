@@ -18,7 +18,9 @@ start_workdir = os.getcwd()
 os.chdir(csv_outdir)
 print('Writing metadata to', csv_outdir)
 
-dfs = pd.read_excel(excel_data_dir + 'tables_and_columns.xlsx', sheet_name=None)
+metadata_file = excel_data_dir + 'tables_and_columns.xlsx'
+print('Reading metadata from xlsx file', metadata_file)
+dfs = pd.read_excel(metadata_file, sheet_name=None)
 
 # Metadata
 df_spec_master = dfs['metadata']

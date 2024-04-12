@@ -93,15 +93,17 @@ def set_foreign_key(table_name, c):
         print(f'No parent table {parent_table} found for foreign key {c}')
 
 def enforce_not_null(table_name, columns):
-    try:
+    #try:
         with engine.connect() as conn:
             for column in columns:
                 stmt = text(f"ALTER TABLE {table_name} ALTER COLUMN {column} SET NOT NULL")
-                conn.execute(stmt)  # Use the connection to execute
-                conn.commit()  # Commit the changes
-        print(f'NOT NULL constraint enforced on these columns {columns} of table {table_name}.')
-    except exc.SQLAlchemyError as e:
-        print(f'Database error: {str(e)}')
+                try:
+                    conn.execute(stmt)  # Use the connection to execute
+                    conn.commit()  # Commit the changes
+                    # print(f'NOT NULL constraint enforced on column {column}.')
+                except exc.SQLAlchemyError as e:
+                    print(f'Database error, unable to "set not null" for column', column)
+                    # print(f'Database error: {str(e)}')
 
 
 def ping_table(dt):
