@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+"""
+Main script for processing the master data
+"""
 
 import pandas as pd
 # Requires optional dependency openpyxl
@@ -51,6 +54,7 @@ if dir_list == []:
     sys.exit()
     
 def column_declared(table_name, c, report = False):
+    # Check whether column name is in metadata
     if (table_name, c) in df_spec_master.index:
         out = True
     else:
@@ -65,18 +69,20 @@ def set_not_null_cols(table_name, df_spec=df_spec_master):
 
 table_list = set(df_spec_master.table_name)
 
-# Create empty tables, may be overwritten with actual data
+# Create empty tables, will be overwritten with any actual Excel data
+# This step ensures presence of all the master primary keys, also in the absence of data
 for table_name in table_list:
     columns = df_spec_master.column_name[df_spec_master.table_name==table_name]
     df = pd.DataFrame(columns=columns)
     push_to_db(df, table_name) # Create empty tables
-
+    enforce_dtypes(table_name, df_spec_master, verbose=False)
 
 
 tables_processed = []
-# take the xlsx file and push data from each sheet in the workbook
+# take the xlsx file and push data from each sheet in the file
 for file in dir_list:
     print('\n*****Processing file', file)
+    # Read in as a dict of dataframes
     dfs = pd.read_excel(file, sheet_name=None)
     # Remove rows containing all empty data
     # See pandas guide for what is considered missing data
@@ -85,6 +91,7 @@ for file in dir_list:
     for table_name in dfs.keys():
         print('\nProcessing sheet named', table_name)
         if re.search(r'_help\s*$', table_name):
+            # Help columns should not go to DB
             continue
         if table_name not in table_list:
             print('No table specified with name '+ table_name + '. Skipping sheet with this name.')
@@ -100,7 +107,7 @@ for file in dir_list:
             print('Table', table_name, "in", file, "has suspiciously many columns.")
             print(df.columns)
 
-        # Data types etc
+        # Data type handling in Pandas
         for c in df.columns:
             if column_declared(table_name, c, report=True):
                 if (df_spec_master.data_type[(table_name, c)]=='INT') | (re.findall(int_regex_pattern, c) != []):
@@ -120,15 +127,16 @@ for file in dir_list:
         print('Pushing table to DB')
         n = push_to_db(df, table_name)
         print("Created DB table", table_name, "with", n,  "rows (count reported by sqlalchemy).")
+        
+        # Enforce data types, non-null constraints
         enforce_dtypes(table_name, df_spec_master)
-
         set_not_null_cols(table_name, df_spec=df_spec_master)
             
         # To csv
         csv_file_name = outdir+'{}.csv'.format(table_name)
         df.to_csv(csv_file_name, 
                   index=False, encoding='utf-8')
-        # Check for empty rows
+        # Check for empty rows, and report
         find_empty_rows_in_csv(csv_file_name)
 
 

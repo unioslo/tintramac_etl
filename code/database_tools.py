@@ -13,31 +13,32 @@ from sqlalchemy import create_engine, text, exc
 from basic_parameters import database_name, database_user
 from basic_parameters import strict_dtypes, strict_fkeys, strict_nulls, strict_pkeys
 
-
+# Connect to local Postgres DB 
 conn = psycopg2.connect(
    database = database_name, 
    user = database_user,
    host = "127.0.0.1", 
    port = "5432"
 )
-
 if conn.status == psycopg2.extensions.STATUS_READY:
     print(f'Python connected to database {database_name} successfully.')
 else:
     print(f'Python failed to connect to database {database_name}.')
 
+# Also connect with SQLalchemy
 if database_user:
     engine = create_engine('postgresql://' + database_user + '@localhost:5432/' + database_name)
 else:
     engine = create_engine('postgresql://localhost:5432/' + database_name)
 
+# Ensure database connection closure
 def close_db():
     if conn is not None:
         conn.close()
         print("Python database connection closed.")
-
 atexit.register(close_db)
 
+# Run arbitrary SQL command
 def run_sql(sql_command):
     with conn.cursor() as cursor:
         #cursor = conn.cursor()
@@ -50,6 +51,7 @@ def run_sql(sql_command):
         finally:
             cursor.close()
 
+# pd.Dataframe to DB
 def push_to_db(df, table_name):#, if_exists='replace'):
     # Use DROP ... CASCADE to drop tables with foreign keys pointing to `table_name`
     sql_drop_query = f"DROP TABLE IF EXISTS {table_name} CASCADE;"
@@ -57,13 +59,14 @@ def push_to_db(df, table_name):#, if_exists='replace'):
     n = df.to_sql(table_name, engine, index=False, if_exists='replace')
     return n
 
-dtype_mapping = {'LONGTEXT': 'text', 
-            'VARCHAR': 'text',
-            'DATE': 'text',
-            'INT': 'integer'}
-def enforce_dtypes(table_name, df_spec):
+def enforce_dtypes(table_name, df_spec, verbose=True):
+    dtype_mapping = {'LONGTEXT': 'text', 
+                'VARCHAR': 'text',
+                'DATE': 'text',
+                'INT': 'integer'}
     if strict_dtypes:
-        print("Enforcing data types")
+        if verbose:
+            print("Enforcing data types")
         # Specify data types in existing table
         df = df_spec[df_spec.table_name==table_name]
         changes = {row.column_name: row.data_type for index, row in df.iterrows()}
@@ -126,7 +129,7 @@ def enforce_not_null(table_name, columns):
                     enconn.rollback() 
                     # print(f'Database error: {str(e)}')
 
-
+# Check if table exists in DB
 def ping_table(dt):
     # Create a cursor object
     cur = conn.cursor()
@@ -144,6 +147,7 @@ def ping_table(dt):
     cur.close()
     return out
 
+# Check if column exists in DB
 def ping_column(dt, col):
     # Create a cursor object
     cur = conn.cursor()

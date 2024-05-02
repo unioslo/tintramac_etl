@@ -8,7 +8,7 @@ import glob
 import pandas as pd
 
 
-
+# Column names fitting pattern always transformed to integer
 int_regex_pattern = '_id$'
 
 def create_dir_if_nec(dir):
@@ -60,8 +60,6 @@ def remove_unnamed_cols(df):
 #     for indx, row in df.iterrows():
 #         pass
 #     return None
-
-
 
 def remove_help_cols(df, table_name, df_specification, ignorable = ('text_id')):
     for col in df.columns:

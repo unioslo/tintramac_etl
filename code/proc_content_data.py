@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Wed Feb 21 16:07:32 2024
-
-@author: knutwa
+Main script for processing content data.
+Assumes that master data already exists on DB with the necessary keys
 """
 
 import pandas as pd
@@ -20,8 +19,6 @@ from tools_data import remove_unnamed_cols, nums_to_ints, create_and_move_to_out
 from tools_data import remove_help_cols, find_empty_rows_in_csv
 from tables_and_columns import df_spec_content, treat_as_text
 
-#gather files in master_sheets
-
 # Where the xlsx files are:
 rootdir = find_newest_path(excel_data_dir) + 'Content data'
 
@@ -37,7 +34,7 @@ atexit.register(exit_stuff)
 create_and_move_to_outdir(outdir)
 print('Writing to', outdir)
 
-# Get excel file names
+# Get Excel file names
 dir_list = []
 #iterates through all the folders and gathers file names
 for subdir, dirs, files in os.walk(rootdir):
@@ -54,7 +51,7 @@ if dir_list == []:
 # dir_list = [f for f in dir_list if re.findall('\d?\d\d\d', os.path.basename(f)) != []]
 
 
-# Check that a column is defined
+# Check whether a column is defined
 def column_declared_content(table_name, c, report = False):
     if (table_name, c) in df_spec_content.index:
         out = True
@@ -91,7 +88,7 @@ for file in dir_list:
     content_dict[file] = {'text_id': text_id, 'data': dfs}
 
 """
-content_dict:
+Result is content_dict of form:
 {filename1: { text_id: str
               data: {table_name1: df
                      table_name2: df
@@ -147,7 +144,7 @@ for table_name, dftmp in conc_data.items():
     #df.columns = df.columns.str.lower()
     #df.columns = df.columns.str.replace('\W', '__', regex=True)
 
-    # Data types etc
+    # Data type handling in Pandas
     for c in df.columns:
         if column_declared_content(table_name, c, report=True):
             if (df_spec_content.data_type[(table_name, c)]=='INT'):
@@ -167,6 +164,7 @@ for table_name, dftmp in conc_data.items():
     n = push_to_db(df, table_name)
     print("Created DB table", table_name, "with", n,  "rows (count reported by sqlalchemy).")
 
+    # Data constraints
     enforce_dtypes(table_name, df_spec=df_spec_content)
     set_not_null_cols(table_name, df_spec=df_spec_content)
 
