@@ -10,8 +10,9 @@ import atexit
 
 
 from basic_parameters import excel_data_dir, output_dir
-from database_tools import push_to_db, set_primary_key, set_foreign_key, enforce_not_null
-from tools_data import remove_unnamed_cols, nums_to_ints, move_to_outdir, find_newest_path
+from basic_parameters import strict_fkeys, strict_pkeys
+from database_tools import push_to_db, set_primary_key, set_foreign_key, enforce_not_null, enforce_dtypes
+from tools_data import remove_unnamed_cols, nums_to_ints, create_and_move_to_outdir, find_newest_path
 from tools_data import remove_help_cols, int_regex_pattern, find_empty_rows_in_csv
 from tables_and_columns import df_spec_master, treat_as_text
 
@@ -32,10 +33,10 @@ start_workdir = os.getcwd()
 def exit_stuff():
     os.chdir(start_workdir)
 atexit.register(exit_stuff)
-move_to_outdir(outdir)
+create_and_move_to_outdir(outdir)
 print('Writing to', outdir)
 
-# Get excel file names
+# Get Excel file names
 dir_list = []
 #iterates through all the folders and gathers file names
 for subdir, dirs, files in os.walk(rootdir):
@@ -68,7 +69,8 @@ table_list = set(df_spec_master.table_name)
 for table_name in table_list:
     columns = df_spec_master.column_name[df_spec_master.table_name==table_name]
     df = pd.DataFrame(columns=columns)
-    push_to_db(df, table_name)
+    push_to_db(df, table_name) # Create empty tables
+
 
 
 tables_processed = []
@@ -118,8 +120,8 @@ for file in dir_list:
         print('Pushing table to DB')
         n = push_to_db(df, table_name)
         print("Created DB table", table_name, "with", n,  "rows (count reported by sqlalchemy).")
+        enforce_dtypes(table_name, df_spec_master)
 
-        print('Enforcing non-null property')
         set_not_null_cols(table_name, df_spec=df_spec_master)
             
         # To csv
@@ -142,17 +144,24 @@ for file in dir_list:
 print('\nThe following master data tables were found and processed:')
 print(sorted(tables_processed))
 
-print('Setting primary keys in master data')
-for table_name, c in df_spec_master.index:
-    if column_declared(table_name, c ):
-        if df_spec_master.key[(table_name, c)] == 'primary':
-            set_primary_key(table_name, c)
+if strict_fkeys:
+    print('Setting primary keys in master data')
+    for table_name, c in df_spec_master.index:
+        if column_declared(table_name, c ):
+            if df_spec_master.key[(table_name, c)] == 'primary':
+                set_primary_key(table_name, c)
+else:
+    print('Warning: Not setting primary keys.')
 
-print('Setting foreign keys in master data')
-for table_name, c in df_spec_master.index:
-    if column_declared(table_name, c ):
-        if df_spec_master.key[(table_name, c)] == 'foreign':
-            set_foreign_key(table_name, c)
+if strict_fkeys & strict_pkeys:
+    print('Setting foreign keys in master data')
+    for table_name, c in df_spec_master.index:
+        if column_declared(table_name, c ):
+            if df_spec_master.key[(table_name, c)] == 'foreign':
+                set_foreign_key(table_name, c)
+else:
+    print('Warning: Not setting foreign keys.')
+
 
 
     

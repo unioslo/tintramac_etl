@@ -11,7 +11,11 @@ import pandas as pd
 
 int_regex_pattern = '_id$'
 
-def move_to_outdir(dir):
+def create_dir_if_nec(dir):
+    if not os.path.exists(dir):
+        os.makedirs(dir)
+
+def create_and_move_to_outdir(dir):
     if not os.path.exists(dir):
         os.makedirs(dir)
     os.chdir(dir)

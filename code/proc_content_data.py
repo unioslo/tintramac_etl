@@ -14,8 +14,9 @@ import sys
 import atexit
 
 from basic_parameters import excel_data_dir, output_dir
-from database_tools import push_to_db, set_primary_key, set_foreign_key, enforce_not_null
-from tools_data import remove_unnamed_cols, nums_to_ints, move_to_outdir, find_newest_path
+from basic_parameters import strict_fkeys, strict_pkeys
+from database_tools import push_to_db, set_primary_key, set_foreign_key, enforce_not_null, enforce_dtypes
+from tools_data import remove_unnamed_cols, nums_to_ints, create_and_move_to_outdir, find_newest_path
 from tools_data import remove_help_cols, find_empty_rows_in_csv
 from tables_and_columns import df_spec_content, treat_as_text
 
@@ -33,7 +34,7 @@ start_workdir = os.getcwd()
 def exit_stuff():
     os.chdir(start_workdir)
 atexit.register(exit_stuff)
-move_to_outdir(outdir)
+create_and_move_to_outdir(outdir)
 print('Writing to', outdir)
 
 # Get excel file names
@@ -165,7 +166,8 @@ for table_name, dftmp in conc_data.items():
     print('Pushing to DB.')
     n = push_to_db(df, table_name)
     print("Created DB table", table_name, "with", n,  "rows (count reported by sqlalchemy).")
-    print('Enforcing non-null constraints')
+
+    enforce_dtypes(table_name, df_spec=df_spec_content)
     set_not_null_cols(table_name, df_spec=df_spec_content)
 
     # To csv
@@ -186,19 +188,25 @@ for table_name, dftmp in conc_data.items():
 print('The following content data tables were processed:')
 print(tables_processed)
 
-print('\nSetting primary keys in content data')
-for table_name, c in df_spec_content.index:
-    if column_declared_content(table_name, c):
-        if df_spec_content.key[(table_name, c)] == 'primary':
-            set_primary_key(table_name, c)
+if strict_pkeys:
+    print('\nSetting primary keys in content data')
+    for table_name, c in df_spec_content.index:
+        if column_declared_content(table_name, c):
+            if df_spec_content.key[(table_name, c)] == 'primary':
+                set_primary_key(table_name, c)
+else:
+    print('Warning: Not setting primary keys.')
 
-print('\nSetting foreign keys in content data')
-# Assuming primary keys in master data are already set
-for table_name in table_list:
-    set_foreign_key(table_name, 'text_id')
-for table_name, c in df_spec_content.index:
-    if column_declared_content(table_name, c):
-        if df_spec_content.key[(table_name, c)] == 'foreign':
-            set_foreign_key(table_name, c)
+if strict_fkeys:
+    print('\nSetting foreign keys in content data')
+    # Assuming primary keys in master data are already set
+    for table_name in table_list:
+        set_foreign_key(table_name, 'text_id')
+    for table_name, c in df_spec_content.index:
+        if column_declared_content(table_name, c):
+            if df_spec_content.key[(table_name, c)] == 'foreign':
+                set_foreign_key(table_name, c)
+else:
+    print('Warning: Not setting foreign keys.')
 
 os.chdir(start_workdir)
