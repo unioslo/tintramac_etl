@@ -7,9 +7,8 @@ import os
 import glob
 import pandas as pd
 
-
 # Column names fitting pattern always transformed to integer
-int_regex_pattern = '_id$'
+int_regex_pattern = r'_id$'
 
 def create_dir_if_nec(dir):
     if not os.path.exists(dir):
@@ -34,6 +33,17 @@ def find_newest_path(rootdir):
     os.chdir(start_workdir)
     return out
 
+"""
+def conv_to_text(df, table_name, df_spec):
+    df_tab = df_spec[df_spec.table_name==table_name]
+    df_tab = df_tab[df_tab.help_column != 'yes']
+    df_tab = df_tab[df_tab.data_type == treat_as_text]
+    df_copy = df.copy()
+    for col in df_tab.column_name:
+        df_copy[col] = df_copy[col].fillna('').astype(str)
+    return df_copy
+"""
+
 def nums_to_ints(df):
     """
     Numeric types should be integer
@@ -52,7 +62,7 @@ def nums_to_ints(df):
     return dfnew
 
 def remove_unnamed_cols(df):
-    patt = '^Unnamed: \d+$'   
+    patt = r'^Unnamed: \d+$'   
     unnameds = [c for c in df.columns if re.findall(patt, c) != []]
     return df.drop(unnameds, axis=1, inplace= False)
 

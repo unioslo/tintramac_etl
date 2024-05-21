@@ -14,10 +14,10 @@ import atexit
 
 from basic_parameters import excel_data_dir, output_dir
 from basic_parameters import strict_fkeys, strict_pkeys
-from database_tools import push_to_db, set_primary_key, set_foreign_key, enforce_not_null, enforce_dtypes
+from database_tools import push_to_db, set_primary_key, set_foreign_key, enforce_not_null, enforce_dtypes, treat_as_text
 from tools_data import remove_unnamed_cols, nums_to_ints, create_and_move_to_outdir, find_newest_path
-from tools_data import remove_help_cols, find_empty_rows_in_csv
-from tables_and_columns import df_spec_content, treat_as_text
+from tools_data import remove_help_cols, find_empty_rows_in_csv, int_regex_pattern
+from tables_and_columns import df_spec_content
 
 # Where the xlsx files are:
 rootdir = find_newest_path(excel_data_dir) + 'Content data'
@@ -147,14 +147,14 @@ for table_name, dftmp in conc_data.items():
     # Data type handling in Pandas
     for c in df.columns:
         if column_declared_content(table_name, c, report=True):
-            if (df_spec_content.data_type[(table_name, c)]=='INT'):
+            if (df_spec_content.data_type[(table_name, c)]=='INT')  |  (re.findall(int_regex_pattern, c) != []):
                 df[c] = pd.to_numeric(df[c], errors='coerce')
                 try:                  
                     df[c] = df[c].astype(pd.Int64Dtype())
                 except TypeError:
                     print('Warning: Unable to convert', c, 'from numeric to integer')
             if df_spec_content.data_type[(table_name, c)] in treat_as_text:
-                df[c] = df[c].astype(str)
+                df[c] = df[c].fillna('').astype(str)
 
     # Convert all numeric types to integer
     df = nums_to_ints(df)

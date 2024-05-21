@@ -16,7 +16,6 @@ csv_outdir = output_dir + 'csv/'
 create_dir_if_nec(csv_outdir)
 
 
-treat_as_text = ('VARCHAR', 'LONGTEXT', 'DATE')
 
 print('Writing metadata to', csv_outdir)
 

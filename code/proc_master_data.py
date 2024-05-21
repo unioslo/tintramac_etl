@@ -14,10 +14,10 @@ import atexit
 
 from basic_parameters import excel_data_dir, output_dir
 from basic_parameters import strict_fkeys, strict_pkeys
-from database_tools import push_to_db, set_primary_key, set_foreign_key, enforce_not_null, enforce_dtypes
+from database_tools import push_to_db, set_primary_key, set_foreign_key, enforce_not_null, enforce_dtypes, treat_as_text
 from tools_data import remove_unnamed_cols, nums_to_ints, create_and_move_to_outdir, find_newest_path
 from tools_data import remove_help_cols, int_regex_pattern, find_empty_rows_in_csv
-from tables_and_columns import df_spec_master, treat_as_text
+from tables_and_columns import df_spec_master
 
 #gather files in master_sheets
 
@@ -47,7 +47,7 @@ for subdir, dirs, files in os.walk(rootdir):
         # if the file is excel, add it
         if (re.findall(r"\.xlsx", file) != []):
             dir_list.append(os.path.join(subdir, file))
-        else: print("Did not process: " + os.path.join(subdir, file))
+        else: print("Will not process: " + os.path.join(subdir, file))
 
 if dir_list == []:
     print('No master sheets found in', rootdir, '. Exiting.')
@@ -64,17 +64,20 @@ def column_declared(table_name, c, report = False):
 
 def set_not_null_cols(table_name, df_spec=df_spec_master):
     df_tab = df_spec[df_spec.table_name==table_name]
+    df_tab = df_tab[df_tab.help_column != 'yes']
     cols_list = list(df_tab.column_name[df_tab.null=='no'])
     enforce_not_null(table_name, cols_list)
 
 table_list = set(df_spec_master.table_name)
 
-# Create empty tables, will be overwritten with any actual Excel data
+# Create empty tables, 
+# will be overwritten with any actual Excel data
 # This step ensures presence of all the master primary keys, also in the absence of data
 for table_name in table_list:
     columns = df_spec_master.column_name[df_spec_master.table_name==table_name]
     df = pd.DataFrame(columns=columns)
-    push_to_db(df, table_name) # Create empty tables
+    df_sans_help = remove_help_cols(df, table_name, df_spec_master)
+    push_to_db(df_sans_help, table_name)
     enforce_dtypes(table_name, df_spec_master, verbose=False)
 
 
@@ -91,7 +94,7 @@ for file in dir_list:
     for table_name in dfs.keys():
         print('\nProcessing sheet named', table_name)
         if re.search(r'_help\s*$', table_name):
-            # Help columns should not go to DB
+            # Help tables should not go to DB
             continue
         if table_name not in table_list:
             print('No table specified with name '+ table_name + '. Skipping sheet with this name.')
@@ -117,7 +120,7 @@ for file in dir_list:
                     except TypeError:
                         print('Warning: Unable to convert', c, 'from numeric to integer')
                 if df_spec_master.data_type[(table_name, c)] in treat_as_text:
-                    df[c] = df[c].astype(str)
+                    df[c] = df[c].fillna('').astype(str)
 
         # Convert all numeric types to integer
         df = nums_to_ints(df)
@@ -152,7 +155,7 @@ for file in dir_list:
 print('\nThe following master data tables were found and processed:')
 print(sorted(tables_processed))
 
-if strict_fkeys:
+if strict_pkeys:
     print('Setting primary keys in master data')
     for table_name, c in df_spec_master.index:
         if column_declared(table_name, c ):

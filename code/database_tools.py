@@ -13,7 +13,13 @@ from sqlalchemy import create_engine, text, exc
 from basic_parameters import database_name, database_user
 from basic_parameters import strict_dtypes, strict_fkeys, strict_nulls, strict_pkeys
 
-# Connect to local Postgres DB 
+dtype_mapping = {'LONGTEXT': 'text', 
+                'VARCHAR': 'text',
+                'DATE': 'text',
+                'INT': 'integer'}
+treat_as_text = [key for key, val in dtype_mapping.items() if val=='text']
+
+# Connect to local Postgres DB
 conn = psycopg2.connect(
    database = database_name, 
    user = database_user,
@@ -60,30 +66,30 @@ def push_to_db(df, table_name):#, if_exists='replace'):
     return n
 
 def enforce_dtypes(table_name, df_spec, verbose=True):
-    dtype_mapping = {'LONGTEXT': 'text', 
-                'VARCHAR': 'text',
-                'DATE': 'text',
-                'INT': 'integer'}
     if strict_dtypes:
         if verbose:
-            print("Enforcing data types")
+            print("Enforcing data types for", table_name)
         # Specify data types in existing table
         df = df_spec[df_spec.table_name==table_name]
+        df = df[df.help_column!='yes']
         changes = {row.column_name: row.data_type for index, row in df.iterrows()}
-        # Find Postgres type, drop if not found
+        # Find Postgres type, first filter out any unlisted types
+        changes = {col: dtype for col, dtype in changes.items() if dtype in dtype_mapping.keys()}
         for col, dtype in changes.items():
             if dtype in dtype_mapping.keys():
                 changes[col] = dtype_mapping[dtype]
-            else:
-                changes.pop(col)
         # Perform SQL
         for col_name, new_type in changes.items():
-            with engine.connect() as connection:
-                try:
-                    query = text(f"ALTER TABLE {table_name} ALTER COLUMN {col_name} SET DATA TYPE {new_type} USING {col_name}::{new_type}")    
-                    connection.execute(query)
-                except exc.SQLAlchemyError as e:
-                        print(f'Warning: database error when enforcing data type for {col_name}. Column not in data?')
+            run_sql(f"ALTER TABLE {table_name} ALTER COLUMN {col_name} SET DATA TYPE {new_type} USING {col_name}::{new_type}")
+            # # Using sqlalchemy here sometimes does not execute properly:
+            # with engine.connect() as connection:
+            #     try:
+            #         query = text(f"ALTER TABLE {table_name} ALTER COLUMN {col_name} SET DATA TYPE {new_type} USING {col_name}::{new_type}")    
+            #         connection.execute(query)
+            #         print(query)
+            #     except exc.SQLAlchemyError as e:
+            #         connection.rollback()
+            #         print(f'Warning: database error. Can not enforce data type for {table_name}:{col_name}. Column not in data?')
 
 def set_primary_key(table_name, column_name):
     if strict_pkeys:
@@ -93,7 +99,6 @@ def set_primary_key(table_name, column_name):
 def __set_foreign_key(foreign_table, column_name, parent_table, constraint_name=None):
     # If you don't provide a specific constraint name, the system will generate one.
     fk_constraint_name = constraint_name if constraint_name else f"{foreign_table}_{column_name}_fkey"
-
     fk_command = f"""
     ALTER TABLE {foreign_table}
     ADD CONSTRAINT {fk_constraint_name}

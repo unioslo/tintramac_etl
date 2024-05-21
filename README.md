@@ -19,7 +19,7 @@ git clone https://github.com/unioslo/tintramac_etl.git
 Create a conda virtual environment that contains the dependencies:
 ```
 cd tintramac_etl/code
-conda create -f environment.yml
+conda env create -f requirements.yml
 ```
 
 ### Setting up a database

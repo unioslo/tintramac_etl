@@ -16,12 +16,11 @@ database_name = "tintramac_utv"
 # Set `database_user = None` to use default username
 database_user = None
 
-# Options to switch off constraints on database. Keep to True unless you know what you're doing.
-strict_nulls = True
-strict_dtypes = True
+# Options to switch off constraints on database. Keep True unless you know what you're doing.
 strict_pkeys = True
 strict_fkeys = True
-
+strict_nulls = True
+strict_dtypes = True
 
 # You can declare alternative paths like this:
 # if not os.path.exists(excel_data_dir):
