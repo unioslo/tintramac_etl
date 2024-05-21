@@ -19,6 +19,9 @@ from tools_data import remove_unnamed_cols, nums_to_ints, create_and_move_to_out
 from tools_data import remove_help_cols, find_empty_rows_in_csv, int_regex_pattern
 from tables_and_columns import df_spec_content
 
+# How to look for text_id in file name
+text_id_regex_pattern = r'_(\d+)\.xlsx'
+
 # Where the xlsx files are:
 rootdir = find_newest_path(excel_data_dir) + 'Content data'
 
@@ -73,9 +76,9 @@ table_list = set(df_spec_content.table_name)
 content_dict = {}
 for file in dir_list:
     print('\nReading data from', file)
-    numbers = re.findall(r'\d?\d\d\d', str(file))
+    numbers = re.findall(text_id_regex_pattern, str(file))
     try:
-        text_id = numbers[0]
+        text_id = numbers[-1]
     except IndexError:
         text_id = '0000'
         print('No text id in file name', file + '. Using default id 0000.')
