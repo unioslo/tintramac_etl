@@ -154,7 +154,10 @@ for table_name, dftmp in conc_data.items():
                 except TypeError:
                     print('Warning: Unable to convert', c, 'from numeric to integer')
             if df_spec_content.data_type[(table_name, c)] in treat_as_text:
-                df[c] = df[c].fillna('').astype(str)
+                try:
+                    df[c] = df[c].fillna('').astype(str)
+                except TypeError:
+                    df[c] = df[c].astype(str)
 
     # Convert all numeric types to integer
     df = nums_to_ints(df)
