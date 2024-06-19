@@ -8,9 +8,10 @@ Created on Wed Feb 21 16:28:05 2024
 
 import re
 import atexit
+from getpass import getpass
 import psycopg2
 from sqlalchemy import create_engine, text, exc
-from basic_parameters import database_name, database_user
+from basic_parameters import database_name, database_user, hostname
 from basic_parameters import strict_dtypes, strict_fkeys, strict_nulls, strict_pkeys
 
 dtype_mapping = {'LONGTEXT': 'text', 
@@ -19,11 +20,24 @@ dtype_mapping = {'LONGTEXT': 'text',
                 'INT': 'integer'}
 treat_as_text = [key for key, val in dtype_mapping.items() if val=='text']
 
+if hostname:
+    if database_user:
+        db_passw = getpass(prompt="Enter your database password:")
+    else:
+        db_passw = None
+else:
+    db_passw = None
+
 # Connect to local Postgres DB
+if hostname:
+    host = hostname
+else:
+    host = "127.0.0.1"
 conn = psycopg2.connect(
    database = database_name, 
    user = database_user,
-   host = "127.0.0.1", 
+   password = db_passw,
+   host = host, 
    port = "5432"
 )
 if conn.status == psycopg2.extensions.STATUS_READY:
@@ -32,10 +46,16 @@ else:
     print(f'Python failed to connect to database {database_name}.')
 
 # Also connect with SQLalchemy
-if database_user:
-    engine = create_engine('postgresql://' + database_user + '@localhost:5432/' + database_name)
+if hostname:
+    if database_user:
+        engine = create_engine('postgresql://' + database_user  + ':' + db_passw + '@' + hostname + ':5432/' + database_name)
+    else:
+        engine = create_engine('postgresql://' + hostname + ':5432/' + database_name)
 else:
-    engine = create_engine('postgresql://localhost:5432/' + database_name)
+    if database_user:
+        engine = create_engine('postgresql://' + database_user + '@localhost:5432/' + database_name)
+    else:
+        engine = create_engine('postgresql://localhost:5432/' + database_name)
 
 # Ensure database connection closure
 def close_db():
@@ -91,11 +111,14 @@ def enforce_dtypes(table_name, df_spec, verbose=True):
             #         connection.rollback()
             #         print(f'Warning: database error. Can not enforce data type for {table_name}:{col_name}. Column not in data?')
 
-def set_primary_key(table_name, column_name):
+def set_primary_key(table_name, column_name, column_name2=None):
     if strict_pkeys:
-        alter_command = f"ALTER TABLE {table_name} ADD PRIMARY KEY ({column_name})"
+        if column_name2:
+            alter_command = f"ALTER TABLE {table_name} ADD PRIMARY KEY ({column_name}, {column_name2})"
+        else:
+            alter_command = f"ALTER TABLE {table_name} ADD PRIMARY KEY ({column_name})"
         run_sql(alter_command)
-    
+
 def __set_foreign_key(foreign_table, column_name, parent_table, constraint_name=None):
     # If you don't provide a specific constraint name, the system will generate one.
     fk_constraint_name = constraint_name if constraint_name else f"{foreign_table}_{column_name}_fkey"

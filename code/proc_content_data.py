@@ -3,6 +3,7 @@
 """
 Main script for processing content data.
 Assumes that master data already exists on DB with the necessary keys
+`text_id`, if not found in the sheet, is derived from the spreadsheet file name
 """
 
 import pandas as pd
@@ -23,8 +24,9 @@ from tables_and_columns import df_spec_content
 text_id_regex_pattern = r'_(\d+)\.xlsx'
 
 # Where the xlsx files are:
-rootdir = find_newest_path(excel_data_dir) + 'Content data'
-
+rootdir = find_newest_path(excel_data_dir) + 'Content Data'
+if not os.path.exists(rootdir):
+    rootdir = find_newest_path(excel_data_dir) + 'Content data'
 # Write csv data etc. here
 outdir = output_dir + 'csv/content_data/'
 
@@ -126,7 +128,8 @@ for f, content in content_dict.items():
         if len(df.columns) > 40:
             print('Warning: Table', table_name, "in", f, "has suspiciously many columns.")
             print(df.columns)
-        df['text_id'] = int(text_id)
+        if 'text_id' not in df.columns:
+            df['text_id'] = int(text_id)
         conc_data[table_name].append(df)
 # Concatenate dfs
 for table_name, dfs in conc_data.items():

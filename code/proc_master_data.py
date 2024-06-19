@@ -24,6 +24,8 @@ from tables_and_columns import df_spec_master
 # Where the xlsx files are:
 rootdir = find_newest_path(excel_data_dir) + 'Master Data'
 if not os.path.exists(rootdir):
+    rootdir = find_newest_path(excel_data_dir) + 'Master data'
+if not os.path.exists(rootdir):
     rootdir = find_newest_path(excel_data_dir) + 'Metadata'
 
 
@@ -93,9 +95,9 @@ for file in dir_list:
     
     for table_name in dfs.keys():
         print('\nProcessing sheet named', table_name)
-        if re.search(r'_help\s*$', table_name):
+        #if re.search(r'_help\s*$', table_name):
             # Help tables should not go to DB
-            continue
+        #    continue
         if table_name not in table_list:
             print('No table specified with name '+ table_name + '. Skipping sheet with this name.')
             continue

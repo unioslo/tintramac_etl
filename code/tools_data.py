@@ -66,11 +66,6 @@ def remove_unnamed_cols(df):
     unnameds = [c for c in df.columns if re.findall(patt, c) != []]
     return df.drop(unnameds, axis=1, inplace= False)
 
-# def remove_empty_rows(df):
-#     for indx, row in df.iterrows():
-#         pass
-#     return None
-
 def remove_help_cols(df, table_name, df_specification, ignorable = ('text_id')):
     for col in df.columns:
         try:

@@ -25,3 +25,7 @@ strict_dtypes = True # Enforces data types
 # You can declare alternative paths like this:
 # if not os.path.exists(excel_data_dir):
 #    excel_data_dir = 'Data entry template/'
+
+# Connect to an external database by replacing hostname none with the host URL
+hostname = None
+# hostname = "dbpg-uio-prod02.uio.no"
