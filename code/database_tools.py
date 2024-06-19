@@ -11,7 +11,7 @@ import atexit
 from getpass import getpass
 import psycopg2
 from sqlalchemy import create_engine, text, exc
-from basic_parameters import database_name, database_user, hostname
+from basic_parameters import database_name, database_user, hostname, ask_for_password
 from basic_parameters import strict_dtypes, strict_fkeys, strict_nulls, strict_pkeys
 
 dtype_mapping = {'LONGTEXT': 'text', 
@@ -22,11 +22,16 @@ treat_as_text = [key for key, val in dtype_mapping.items() if val=='text']
 
 if hostname:
     if database_user:
+        print()
         db_passw = getpass(prompt="Enter your database password:")
     else:
         db_passw = None
 else:
-    db_passw = None
+    if ask_for_password:
+        print()
+        db_passw = getpass(prompt="Enter your database password:")
+    else:
+        db_passw = None
 
 # Connect to local Postgres DB
 if hostname:
