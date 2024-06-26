@@ -23,6 +23,11 @@ from tables_and_columns import df_spec_content
 # How to look for text_id in file name
 text_id_regex_pattern = r'_(\d+)\.xlsx'
 
+if not (excel_data_dir[-1] == '/'):
+    excel_data_dir = excel_data_dir + '/'
+if not (output_dir[-1] == '/'):
+    output_dir = output_dir + '/'
+
 # Where the xlsx files are:
 rootdir = find_newest_path(excel_data_dir) + 'Content Data'
 if not os.path.exists(rootdir):

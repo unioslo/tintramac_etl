@@ -19,7 +19,10 @@ from tools_data import remove_unnamed_cols, nums_to_ints, create_and_move_to_out
 from tools_data import remove_help_cols, int_regex_pattern, find_empty_rows_in_csv
 from tables_and_columns import df_spec_master
 
-#gather files in master_sheets
+if not (excel_data_dir[-1] == '/'):
+    excel_data_dir = excel_data_dir + '/'
+if not (output_dir[-1] == '/'):
+    output_dir = output_dir + '/'
 
 # Where the xlsx files are:
 rootdir = find_newest_path(excel_data_dir) + 'Master Data'
