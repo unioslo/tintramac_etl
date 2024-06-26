@@ -9,7 +9,11 @@ from basic_parameters import excel_data_dir, output_dir
 from database_tools import push_to_db
 from tools_data import create_and_move_to_outdir, create_dir_if_nec, strip_white
 
-
+if not (excel_data_dir[-1] == '/'):
+    excel_data_dir = excel_data_dir + '/'
+if not (output_dir[-1] == '/'):
+    output_dir = output_dir + '/'
+    
 # Write csv data here
 create_dir_if_nec(output_dir)
 csv_outdir = output_dir + 'csv/'
