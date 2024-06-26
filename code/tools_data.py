@@ -44,6 +44,15 @@ def conv_to_text(df, table_name, df_spec):
     return df_copy
 """
 
+# Strip whitespace
+def strip_white(df):
+    df.columns = [n.strip() for n in df.columns]
+    # Iterate over all columns and strip whitespace from string columns
+    for col in df.columns:
+        if df[col].dtype == "object":
+            df[col] = df[col].str.strip()
+    return df
+
 def nums_to_ints(df):
     """
     Numeric types should be integer

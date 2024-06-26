@@ -104,6 +104,7 @@ for file in dir_list:
         
         dftmp = dfs[table_name]
         dftmp = remove_unnamed_cols(dftmp)
+        dftmp.columns = [c.strip() for c in dftmp.columns]
         df = remove_help_cols(dftmp, table_name, df_spec_master, ignorable=[])
         # Process column names. Make lower case:
         #df.columns = df.columns.str.lower()

@@ -144,6 +144,7 @@ for table_name, dftmp in conc_data.items():
         print('No table specified with name '+ table_name + '. Skipping sheet with this name.')
         continue
     dftmp = remove_unnamed_cols(dftmp)
+    dftmp.columns = [c.strip() for c in dftmp.columns]
     print('Removing help columns')
     df = remove_help_cols(dftmp, table_name, df_specification=df_spec_content)
     # Process column names. Make lower case:

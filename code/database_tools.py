@@ -10,6 +10,7 @@ import re
 import atexit
 from getpass import getpass
 import psycopg2
+from psycopg2 import sql
 from sqlalchemy import create_engine, text, exc
 from basic_parameters import database_name, database_user, hostname, ask_for_password
 from basic_parameters import strict_dtypes, strict_fkeys, strict_nulls, strict_pkeys
@@ -70,11 +71,11 @@ def close_db():
 atexit.register(close_db)
 
 # Run arbitrary SQL command
-def run_sql(sql_command):
+def run_sql(sql_command, params=None):
     with conn.cursor() as cursor:
         #cursor = conn.cursor()
         try:
-            cursor.execute(sql_command)
+            cursor.execute(sql_command, params)
             conn.commit()
         except psycopg2.DatabaseError as error:
             print(f"Database error: {error}")
@@ -86,6 +87,7 @@ def run_sql(sql_command):
 def push_to_db(df, table_name):#, if_exists='replace'):
     # Use DROP ... CASCADE to drop tables with foreign keys pointing to `table_name`
     sql_drop_query = f"DROP TABLE IF EXISTS {table_name} CASCADE;"
+    sql_drop_query = sql.SQL("DROP TABLE IF EXISTS {} CASCADE;").format(sql.Identifier(table_name))
     run_sql(sql_drop_query)
     n = df.to_sql(table_name, engine, index=False, if_exists='replace')
     return n
@@ -105,7 +107,17 @@ def enforce_dtypes(table_name, df_spec, verbose=True):
                 changes[col] = dtype_mapping[dtype]
         # Perform SQL
         for col_name, new_type in changes.items():
-            run_sql(f"ALTER TABLE {table_name} ALTER COLUMN {col_name} SET DATA TYPE {new_type} USING {col_name}::{new_type}")
+            alter_command = sql.SQL(
+                "ALTER TABLE {} ALTER COLUMN {} SET DATA TYPE {} USING {}::{}"
+            ).format(
+                sql.Identifier(table_name),
+                sql.Identifier(col_name),
+                sql.SQL(new_type),
+                sql.Identifier(col_name),
+                sql.SQL(new_type)
+            )
+            run_sql(alter_command)
+            #run_sql(f"ALTER TABLE {table_name} ALTER COLUMN {col_name} SET DATA TYPE {new_type} USING {col_name}::{new_type}")
             # # Using sqlalchemy here sometimes does not execute properly:
             # with engine.connect() as connection:
             #     try:
@@ -116,24 +128,42 @@ def enforce_dtypes(table_name, df_spec, verbose=True):
             #         connection.rollback()
             #         print(f'Warning: database error. Can not enforce data type for {table_name}:{col_name}. Column not in data?')
 
-def set_primary_key(table_name, column_name, column_name2=None):
+def set_primary_key(table_name, column_name, column_name2=None, strict_pkeys=True):
     if strict_pkeys:
         if column_name2:
-            alter_command = f"ALTER TABLE {table_name} ADD PRIMARY KEY ({column_name}, {column_name2})"
+            alter_command = sql.SQL(
+                "ALTER TABLE {} ADD PRIMARY KEY ({} ,{})"
+            ).format(
+                sql.Identifier(table_name),
+                sql.Identifier(column_name),
+                sql.Identifier(column_name2)
+            )
         else:
-            alter_command = f"ALTER TABLE {table_name} ADD PRIMARY KEY ({column_name})"
+            alter_command = sql.SQL(
+                "ALTER TABLE {} ADD PRIMARY KEY ({})"
+            ).format(
+                sql.Identifier(table_name),
+                sql.Identifier(column_name)
+            )
         run_sql(alter_command)
 
 def __set_foreign_key(foreign_table, column_name, parent_table, constraint_name=None):
     # If you don't provide a specific constraint name, the system will generate one.
-    fk_constraint_name = constraint_name if constraint_name else f"{foreign_table}_{column_name}_fkey"
-    fk_command = f"""
-    ALTER TABLE {foreign_table}
-    ADD CONSTRAINT {fk_constraint_name}
-    FOREIGN KEY ({column_name})
-    REFERENCES {parent_table} ({column_name});
-    """
+    fk_constraint_name = sql.Identifier(constraint_name if constraint_name else f"{foreign_table}_{column_name}_fkey")
+    fk_command = sql.SQL("""
+        ALTER TABLE {foreign_table}
+        ADD CONSTRAINT {constraint_name}
+        FOREIGN KEY ({column_name})
+        REFERENCES {parent_table} ({parent_column});
+        """).format(
+        foreign_table=sql.Identifier(foreign_table),
+        constraint_name=fk_constraint_name,
+        column_name=sql.Identifier(column_name),
+        parent_table=sql.Identifier(parent_table),
+        parent_column=sql.Identifier(column_name)
+    )
     run_sql(fk_command)
+
 
 # Setting foreign keys:
 def set_foreign_key(table_name, c):
@@ -147,19 +177,25 @@ def set_foreign_key(table_name, c):
         else:
             print(f'No parent table {parent_table} found for foreign key {c}')
 
-def enforce_not_null(table_name, columns):
+def enforce_not_null(table_name, columns, strict_nulls=True):
     if strict_nulls:
         print("Enforcing non-null property")
-        with engine.connect() as enconn:
+        with conn.cursor() as cursor:
             for column in columns:
-                stmt = text(f"ALTER TABLE {table_name} ALTER COLUMN {column} SET NOT NULL")
+                # Create the ALTER TABLE command using psycopg2's SQL composition utilities
+                stmt = sql.SQL("ALTER TABLE {} ALTER COLUMN {} SET NOT NULL").format(
+                    sql.Identifier(table_name),
+                    sql.Identifier(column)
+                )
                 try:
-                    enconn.execute(stmt)  # Use the connection to execute
-                    enconn.commit()  # Commit the changes
+                    cursor.execute(stmt)  # Use the cursor to execute
+                    conn.commit()  # Commit the changes
+                    # Uncomment the following line to get a confirmation for each column
                     # print(f'NOT NULL constraint enforced on column {column}.')
-                except exc.SQLAlchemyError as e:
+                except psycopg2.DatabaseError as e:
                     print(f'Database error, unable to "set not null" for column {column} in {table_name}')
-                    enconn.rollback() 
+                    conn.rollback()
+                    # Uncomment the following line to see the detailed error
                     # print(f'Database error: {str(e)}')
 
 # Check if table exists in DB
@@ -167,7 +203,7 @@ def ping_table(dt):
     # Create a cursor object
     cur = conn.cursor()
     # Your SQL query to get the 'tab' table
-    sql_query = f'SELECT * FROM {dt};'
+    sql_query = sql.SQL('SELECT * FROM {}').format(sql.Identifier(dt))
     # Execute the query
     try:
         cur.execute(sql_query)
@@ -185,7 +221,7 @@ def ping_column(dt, col):
     # Create a cursor object
     cur = conn.cursor()
     # Your SQL query to get the 'col' column from the 'tab' table
-    sql_query = f'SELECT {col} FROM {dt};'
+    sql_query = sql.SQL('SELECT {} FROM {}').format(sql.Identifier(col), sql.Identifier(dt))
     # Execute the query
     try:
         cur.execute(sql_query)
