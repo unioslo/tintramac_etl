@@ -19,10 +19,10 @@ database_user = None
 ask_for_password = False
 
 # Options to switch off constraints on database. Keep True unless you know what you're doing.
-strict_pkeys = False # Set primary keys
+strict_pkeys = True # Set primary keys
 strict_fkeys = True # Set foreign keys. Only runs when strict_pkeys is True
-strict_nulls = False # Enforce non-null property where applicable
-strict_dtypes = False # Enforce data types
+strict_nulls = True # Enforce non-null property where applicable
+strict_dtypes = True # Enforce data types
 
 # You can declare alternative paths like this:
 # if not os.path.exists(excel_data_dir):
