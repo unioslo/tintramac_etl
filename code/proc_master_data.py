@@ -16,7 +16,7 @@ from basic_parameters import excel_data_dir, output_dir
 from basic_parameters import strict_fkeys, strict_pkeys
 from database_tools import push_to_db, set_primary_key, set_foreign_key, enforce_not_null, enforce_dtypes, treat_as_text
 from tools_data import remove_unnamed_cols, nums_to_ints, create_and_move_to_outdir, find_newest_path
-from tools_data import remove_help_cols, int_regex_pattern, find_empty_rows_in_csv
+from tools_data import remove_help_cols, int_regex_pattern, find_empty_rows_in_csv, times2strings
 from tables_and_columns import df_spec_master
 
 if not (excel_data_dir[-1] == '/'):
@@ -112,6 +112,10 @@ for file in dir_list:
         # Process column names. Make lower case:
         #df.columns = df.columns.str.lower()
         #df.columns = df.columns.str.replace('\W', '__', regex=True)
+
+        #print(df.dtypes)
+        df = times2strings(df)
+
         if len(df.columns) > 40:
             print('Table', table_name, "in", file, "has suspiciously many columns.")
             print(df.columns)

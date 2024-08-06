@@ -17,7 +17,7 @@ from basic_parameters import excel_data_dir, output_dir
 from basic_parameters import strict_fkeys, strict_pkeys
 from database_tools import push_to_db, set_primary_key, set_foreign_key, enforce_not_null, enforce_dtypes, treat_as_text
 from tools_data import remove_unnamed_cols, nums_to_ints, create_and_move_to_outdir, find_newest_path
-from tools_data import remove_help_cols, find_empty_rows_in_csv, int_regex_pattern
+from tools_data import remove_help_cols, find_empty_rows_in_csv, int_regex_pattern, times2strings
 from tables_and_columns import df_spec_content
 
 # How to look for text_id in file name
@@ -155,6 +155,8 @@ for table_name, dftmp in conc_data.items():
     # Process column names. Make lower case:
     #df.columns = df.columns.str.lower()
     #df.columns = df.columns.str.replace('\W', '__', regex=True)
+
+    df = times2strings(df)
 
     # Data type handling in Pandas
     for c in df.columns:

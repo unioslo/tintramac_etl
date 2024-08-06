@@ -70,6 +70,17 @@ def nums_to_ints(df):
                 print('Unable to convert', c, 'from numeric to integer.')
     return dfnew
 
+def times2strings(df):
+    # Change all datetime types to strings. 
+    # In place!!!
+    # 'NaT' --> ''
+    for col in df.columns:
+        if pd.api.types.is_datetime64_any_dtype(df[col]):
+            print('Resetting column', col, 'from type', df[col].dtype, 'to text.')
+            df[col] = df[col].astype(str)
+            df[col] = df[col].replace('NaT', '')
+    return df
+
 def remove_unnamed_cols(df):
     patt = r'^Unnamed: \d+$'   
     unnameds = [c for c in df.columns if re.findall(patt, c) != []]
