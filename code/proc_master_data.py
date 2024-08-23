@@ -13,7 +13,7 @@ import atexit
 
 
 from basic_parameters import excel_data_dir, output_dir
-from basic_parameters import strict_fkeys, strict_pkeys
+from basic_parameters import strict_fkeys, strict_pkeys 
 from database_tools import push_to_db, set_primary_key, set_foreign_key, enforce_not_null, enforce_dtypes, treat_as_text
 from tools_data import remove_unnamed_cols, nums_to_ints, create_and_move_to_outdir, find_newest_path
 from tools_data import remove_help_cols, int_regex_pattern, find_empty_rows_in_csv, times2strings
@@ -130,10 +130,14 @@ for file in dir_list:
                     except TypeError:
                         print('Warning: Unable to convert', c, 'from numeric to integer')
                 if df_spec_master.data_type[(table_name, c)] in treat_as_text:
+                    # Convert column to string and replace any empty values with empty string:
                     try:
                         df[c] = df[c].fillna('').astype(str)
                     except TypeError:
                         df[c] = df[c].astype(str)
+                    except ValueError:
+                        # convert column to string and replace 'NaN' with empty string 
+                        df[c] = df[c].astype(str).replace('nan', '').replace('None', '').replace('NaT', '').replace('NA', '')
         # Convert all numeric types to integer
         df = nums_to_ints(df)
 

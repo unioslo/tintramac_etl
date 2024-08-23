@@ -177,7 +177,7 @@ def set_foreign_key(table_name, c):
         else:
             print(f'No parent table {parent_table} found for foreign key {c}')
 
-def enforce_not_null(table_name, columns, strict_nulls=True):
+def enforce_not_null(table_name, columns, strict_nulls=strict_nulls):
     if strict_nulls:
         print("Enforcing non-null property")
         with conn.cursor() as cursor:
