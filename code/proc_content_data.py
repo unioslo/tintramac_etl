@@ -3,7 +3,6 @@
 """
 Main script for processing content data.
 Assumes that master data already exists on DB with the necessary keys
-`text_id`, if not found in the sheet, is derived from the spreadsheet file name
 """
 
 import pandas as pd
@@ -20,8 +19,11 @@ from tools_data import remove_unnamed_cols, nums_to_ints, create_and_move_to_out
 from tools_data import remove_help_cols, find_empty_rows_in_csv, int_regex_pattern, times2strings
 from tables_and_columns import df_spec_content
 
-# How to look for text_id in file name
-text_id_regex_pattern = r'_(\d+)\.xlsx'
+# Whether and how to look for text_id in file name
+# `text_id`, if not found in the sheet, is derived from the spreadsheet file name
+# This method is obsolete, hence set to None
+text_id_regex_pattern = None #r'_(\d+)\.xlsx'
+
 
 if not (excel_data_dir[-1] == '/'):
     excel_data_dir = excel_data_dir + '/'
@@ -66,7 +68,7 @@ def column_declared_content(table_name, c, report = False):
     if (table_name, c) in df_spec_content.index:
         out = True
     else:
-        if (report) & (c != 'text_id'):
+        if report: #& (c != 'text_id'):
             print('Warning: Column', c, 'not specified for content table', table_name)
         out = False
     return out
@@ -83,23 +85,26 @@ table_list = set(df_spec_content.table_name)
 content_dict = {}
 for file in dir_list:
     print('\nReading data from', file)
-    numbers = re.findall(text_id_regex_pattern, str(file))
-    try:
-        text_id = numbers[-1]
-    except IndexError:
-        text_id = '0000'
-        print('No text id in file name', file + '. Using default id 0000.')
-    print (text_id + " processing")
+    if text_id_regex_pattern:
+        numbers = re.findall(text_id_regex_pattern, str(file))
+        try:
+            text_id_from_fname = numbers[-1]
+        except IndexError:
+            text_id_from_fname = '0000'
+            #print('No text id in file name', file + '. Using default id 0000.')
+    else:
+        text_id_from_fname = None
+    #print (text_id + " processing")
     dfs = pd.read_excel(file, sheet_name=None)
     # Remove rows containing all empty data
     # See pandas guide for what is considered missing data
     dfs = {key: df.dropna(how = 'all') for key, df in dfs.items()}
     print('Done reading from', file)
-    content_dict[file] = {'text_id': text_id, 'data': dfs}
+    content_dict[file] = {'text_id_from_fname': text_id_from_fname, 'data': dfs}
 
 """
 Result is content_dict of form:
-{filename1: { text_id: str
+{filename1: { text_id_from_fname: str/None
               data: {table_name1: df
                      table_name2: df
                      }
@@ -118,33 +123,40 @@ for table_name in names:
 
 # Concatenate:
 # Empty lists
-print('Concatenating tables from each source.')
+print('\nConcatenating tables from each source.')
 conc_data = {}
 for table_name in names:
     conc_data[table_name] = []
-# List of dfs for each table, insert text ids etc
+# Make a list of dataframes for each table, insert text ids etc
 for f, content in content_dict.items():
-    text_id = content['text_id']
     dfs = content['data']
     # Remove rows containing all empty data
     # See pandas guide for what is considered missing data
     dfs = {key: df.dropna(how = 'all') for key, df in dfs.items()}
     for table_name, df in dfs.items():
-        if len(df.columns) > 40:
-            print('Warning: Table', table_name, "in", f, "has suspiciously many columns.")
-            print(df.columns)
-        if 'text_id' not in df.columns:
-            df['text_id'] = int(text_id)
-        conc_data[table_name].append(df)
-# Concatenate dfs
+        if not df.empty:
+            if len(df.columns) > 40:
+                print('Warning: Table', table_name, "in", f, "has suspiciously many columns.")
+                print(df.columns)
+            if ('text_id' not in df.columns) and (df.shape[0] > 0):
+                print('Warning: No text_id column in table', table_name, 'from', f)
+                if text_id_regex_pattern:
+                    df['text_id'] = int(content_dict[f]['text_id_from_fname'])
+            conc_data[table_name].append(df)
+# Concatenate dfs from the lists
 for table_name, dfs in conc_data.items():
-    conc_data[table_name] = pd.concat(dfs) 
-        
+    if dfs != []:
+        conc_data[table_name] = pd.concat(dfs)
+    else:
+        print('\nWarning: No data for table', table_name)
+        conc_data[table_name] = pd.DataFrame()
+# Exclude empty tables
+conc_data = {table_name: df for table_name, df in conc_data.items() if not df.empty}
 
 # Loop over the tables and write to DB etc
 tables_processed = []
 for table_name, dftmp in conc_data.items():
-    print('\nProcessing sheet named ', table_name)
+    print('\nProcessing sheets named', table_name)
     if table_name not in table_list:
         print('No table specified with name '+ table_name + '. Skipping sheet with this name.')
         continue
@@ -172,6 +184,9 @@ for table_name, dftmp in conc_data.items():
                     df[c] = df[c].fillna('').astype(str)
                 except TypeError:
                     df[c] = df[c].astype(str)
+                except ValueError:
+                        # convert column to string and replace 'NaN' etc with empty string 
+                        df[c] = df[c].astype(str).replace('nan', '').replace('None', '').replace('NaT', '').replace('NA', '')
 
     # Convert all numeric types to integer
     df = nums_to_ints(df)
@@ -215,8 +230,8 @@ else:
 if strict_fkeys:
     print('\nSetting foreign keys in content data')
     # Assuming primary keys in master data are already set
-    for table_name in table_list:
-        set_foreign_key(table_name, 'text_id')
+    #for table_name in table_list:
+    #    set_foreign_key(table_name, 'text_id')
     for table_name, c in df_spec_content.index:
         if column_declared_content(table_name, c):
             if df_spec_content.key[(table_name, c)] == 'foreign':
